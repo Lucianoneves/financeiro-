@@ -14,8 +14,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         // Import dinâmico: o cliente do banco valida o ambiente ao carregar,
         // e o build do Next não deve exigir as variáveis.
-        const { db } = await import("@/lib/db");
-        const usuario = await db.usuario.findUnique({
+        const { getDb } = await import("@/lib/db");
+        const usuario = await getDb().usuario.findUnique({
           where: { email: parsed.data.email },
         });
         if (!usuario) return null;
@@ -35,8 +35,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Chamado pelo proxy: rotas do dashboard exigem sessão.
     authorized({ auth, request }) {
       const { pathname } = request.nextUrl;
-      if (pathname.startsWith("/antecipacoes")) return !!auth;
-      return true;
+      // Só a home e o login são públicos; o resto do app exige sessão.
+      if (pathname === "/" || pathname === "/login") return true;
+      return !!auth;
     },
   },
 });
