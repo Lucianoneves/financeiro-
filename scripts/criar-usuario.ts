@@ -1,9 +1,15 @@
 // Cria (ou atualiza a senha de) um usuário.
 // Uso: npm run usuario:criar -- email@exemplo.com "Nome" "senha"
 import "dotenv/config";
-import { db } from "../src/lib/db";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { PrismaClient } from "../src/generated/prisma/client";
 import { gerarHashSenha } from "../src/lib/senha";
 import { loginSchema } from "../src/lib/validations/login";
+
+// Usa só o DATABASE_URL (não o getEnv), para não exigir as demais variáveis.
+const db = new PrismaClient({
+  adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }),
+});
 
 async function main() {
   const [email, nome, senha] = process.argv.slice(2);
