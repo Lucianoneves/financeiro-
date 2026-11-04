@@ -1,7 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { totaisDeAntecipacoes } from "./totais";
+import { totaisDeAntecipacoes, totaisPorConta } from "./totais";
 
 const base = { status: "ATIVA" as const, tituloBaixado: false };
+
+describe("totaisPorConta", () => {
+  it("separa os totais por conta e ignora canceladas", () => {
+    const t = totaisPorConta([
+      { ...base, contaId: "a", valorLiquido: "970.00", juros: "25.00", tarifas: "5.00" },
+      { ...base, contaId: "a", tituloBaixado: true, valorLiquido: "100.00", juros: "0.00", tarifas: "0.00" },
+      { ...base, contaId: "b", valorLiquido: "50.00", juros: "1.00", tarifas: "1.00" },
+      { ...base, status: "CANCELADA", contaId: "b", valorLiquido: "999.00", juros: "9.00", tarifas: "9.00" },
+    ]);
+    expect(t.get("a")).toEqual({
+      quantidade: 2,
+      recebidoCentavos: 107000n,
+      recebidoPendenteCentavos: 97000n,
+      jurosCentavos: 2500n,
+      tarifasCentavos: 500n,
+    });
+    expect(t.get("b")?.quantidade).toBe(1);
+    expect(t.get("b")?.recebidoCentavos).toBe(5000n);
+    expect(t.has("c")).toBe(false);
+  });
+});
 
 describe("totaisDeAntecipacoes", () => {
   it("soma líquido, juros e tarifas das antecipações ativas", () => {

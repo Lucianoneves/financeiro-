@@ -19,6 +19,39 @@ export type TotaisAntecipacao = {
   tarifasCentavos: bigint;
 };
 
+export type AntecipacaoComConta = AntecipacaoParaTotal & { contaId: string };
+
+export type TotaisDaConta = TotaisAntecipacao & { quantidade: number };
+
+// Totais por conta bancária (só antecipações ATIVAS). Contas sem nenhuma
+// antecipação ativa não aparecem no resultado: quem chama preenche com zero.
+export function totaisPorConta(
+  antecipacoes: AntecipacaoComConta[],
+): Map<string, TotaisDaConta> {
+  const porConta = new Map<string, TotaisDaConta>();
+  for (const a of antecipacoes) {
+    if (a.status !== "ATIVA") continue;
+    let totais = porConta.get(a.contaId);
+    if (!totais) {
+      totais = {
+        quantidade: 0,
+        recebidoCentavos: 0n,
+        recebidoPendenteCentavos: 0n,
+        jurosCentavos: 0n,
+        tarifasCentavos: 0n,
+      };
+      porConta.set(a.contaId, totais);
+    }
+    const parcial = totaisDeAntecipacoes([a]);
+    totais.quantidade += 1;
+    totais.recebidoCentavos += parcial.recebidoCentavos;
+    totais.recebidoPendenteCentavos += parcial.recebidoPendenteCentavos;
+    totais.jurosCentavos += parcial.jurosCentavos;
+    totais.tarifasCentavos += parcial.tarifasCentavos;
+  }
+  return porConta;
+}
+
 // Soma só antecipações ATIVAS; as canceladas não representam dinheiro recebido.
 export function totaisDeAntecipacoes(
   antecipacoes: AntecipacaoParaTotal[],
