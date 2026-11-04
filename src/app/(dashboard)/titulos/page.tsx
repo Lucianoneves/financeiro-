@@ -2,7 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { baixarTituloAction, criarTitulo } from "@/app/(dashboard)/actions";
+import { baixarTituloAction, criarTitulo, sincronizarAction } from "@/app/(dashboard)/actions";
 import { Campo, FormularioAcao } from "@/components/formulario-acao";
 import { BotaoAcao } from "@/components/botao-acao";
 import { getDb } from "@/lib/db";
@@ -34,10 +34,35 @@ export default function TitulosPage({ searchParams }: { searchParams: SearchPara
         <Campo rotulo="Valor (ex.: 1500,00)" name="valor" inputMode="decimal" required />
         <Campo rotulo="Vencimento" name="vencimento" type="date" required />
       </FormularioAcao>
+      <Suspense fallback={null}>
+        <SincronizarGestaoClick />
+      </Suspense>
       <Suspense fallback={<p>Carregando...</p>}>
         <ListaTitulos searchParams={searchParams} />
       </Suspense>
     </main>
+  );
+}
+
+function diasDeHoje(deslocamento: number) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + deslocamento);
+  return d.toISOString().slice(0, 10);
+}
+
+async function SincronizarGestaoClick() {
+  await connection(); // a data de hoje só existe em tempo de requisição
+  await exigirSessao();
+  return (
+    <FormularioAcao action={sincronizarAction} rotuloEnviar="Sincronizar com o GestãoClick">
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        Importa os recebimentos em aberto e atualiza as baixas. Só lê o
+        GestãoClick; nada é alterado lá. O período vale para o vencimento (ou
+        a data da baixa, nos já baixados).
+      </p>
+      <Campo rotulo="Vencimento de" name="dataInicio" type="date" defaultValue={diasDeHoje(-180)} required />
+      <Campo rotulo="até" name="dataFim" type="date" defaultValue={diasDeHoje(365)} required />
+    </FormularioAcao>
   );
 }
 
