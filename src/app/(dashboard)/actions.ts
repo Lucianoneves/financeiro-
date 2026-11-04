@@ -9,7 +9,9 @@ import { ErroNegocio } from "@/lib/antecipacoes/regras";
 import { getDb } from "@/lib/db";
 import { baixarTitulo } from "@/lib/titulos/servico";
 import { antecipacaoSchema } from "@/lib/validations/antecipacao";
+import { sincronizarTitulos } from "@/lib/gestaoclick/sincronizar";
 import { contaSchema, tituloSchema } from "@/lib/validations/cadastros";
+import { sincronizacaoSchema } from "@/lib/validations/sincronizacao";
 
 export type EstadoForm = { erro?: string; sucesso?: string };
 
@@ -117,5 +119,30 @@ export async function cancelarAntecipacaoAction(
     revalidatePath("/titulos");
     revalidatePath("/antecipacoes");
     return "Antecipação cancelada.";
+  });
+}
+
+// Puxa os recebimentos do GestãoClick (somente leitura) para a tabela de títulos.
+export async function sincronizarAction(
+  _: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  await exigirSessao();
+  const v = validar(sincronizacaoSchema, formData);
+  if (v.erro) return { erro: v.erro };
+  return executar(async () => {
+    const r = await sincronizarTitulos(v.dados!);
+    revalidatePath("/titulos");
+    revalidatePath("/antecipacoes");
+    const partes = [
+      `${r.criados} novo(s)`,
+      `${r.atualizados} atualizado(s)`,
+      `${r.baixados} baixado(s) no ERP`,
+    ];
+    if (r.ignoradosJaBaixados) partes.push(`${r.ignoradosJaBaixados} já baixado(s) ignorado(s)`);
+    if (r.ignoradosInvalidos) partes.push(`${r.ignoradosInvalidos} com dados inválidos ignorado(s)`);
+    if (r.valorDivergente) partes.push(`${r.valorDivergente} com valor diferente no ERP e antecipação ativa (não alterado)`);
+    if (r.naoVerificados) partes.push(`${r.naoVerificados} fora da janela não conferido(s)`);
+    return `Sincronizado: ${partes.join(", ")}.`;
   });
 }

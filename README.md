@@ -44,7 +44,7 @@ src/
     api/auth/[...nextauth]/    rotas do Auth.js
     api/health/                healthcheck
     login/                     página de login
-    (dashboard)/contas|titulos cadastros; antecipacoes registro e cancelamento
+    (dashboard)/contas|titulos cadastros; antecipacoes registro e cancelamento; custos relatório de juros e tarifas
     (dashboard)/actions.ts     Server Actions (exigem sessão, validam com Zod)
   proxy.ts                   protege as rotas do dashboard (exige sessão)
   components/ui/             componentes shadcn/ui
@@ -56,7 +56,7 @@ src/
     senha.ts                 hash e verificação de senha (bcryptjs)
     dinheiro.ts              aritmética monetária em centavos
     env.ts                   validação das variáveis de ambiente (Zod, lazy)
-    gestaoclick/client.ts    cliente HTTP da API GestãoClick
+    gestaoclick/             cliente HTTP, leitura de recebimentos e sincronização (somente leitura)
     titulos/estado.ts        estado derivado do título
     validations/             schemas Zod
 ```
@@ -124,9 +124,8 @@ Para entender o porquê das regras (estados do título, baixa sem entrada de cai
 
 ## Pendências
 
-- Confirmar endpoints e formato de resposta da API GestãoClick em `src/lib/gestaoclick/client.ts`.
-- Implementar a sincronização de títulos do GestãoClick (`origem = GESTAOCLICK`).
-- Relatório de custo financeiro (juros e tarifas) por período e por banco. Hoje a lista de títulos só mostra os totais gerais.
+- Filtro por loja na sincronização com o GestãoClick (hoje vem só a loja padrão da chave).
+- Sincronizar só os recebimentos que são boleto, se isso precisar ser separado dos demais recebimentos.
 - Testes automáticos das operações no banco (concorrência e índice parcial de uma antecipação ativa por título).
 - Paginar a lista de títulos e antecipações (hoje sem `take`).
 - Instalar componentes shadcn adicionais conforme necessário.

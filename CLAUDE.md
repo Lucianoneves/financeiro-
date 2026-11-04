@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Financeiro: a receivables-advance (boleto anticipation) system for a company that anticipates its own boletos at a bank. Next.js 16 (App Router) + React 19 + TypeScript, Tailwind 4 + shadcn/ui, Prisma 7 on Neon Postgres, Auth.js v5 (beta), Zod 4, Vitest.
 
-The GestãoClick ERP has no concept of "money received but client hasn't paid yet": a título is either open or baixado. **This system is the only place that state exists.** It runs standalone: titles are typed in manually (`origem = MANUAL`). Syncing titles from GestãoClick (`origem = GESTAOCLICK`) is not built; the API keys currently return `NAO_AUTENTICADO` and the endpoints are unconfirmed. Nothing is ever written to the ERP.
+The GestãoClick ERP has no concept of "money received but client hasn't paid yet": a título is either open or baixado. **This system is the only place that state exists.** Titles come from two origins: typed in manually (`origem = MANUAL`) or imported from GestãoClick (`origem = GESTAOCLICK`) by the "Sincronizar" button on `/titulos`. The sync is **read-only**: nothing is ever written to the ERP.
 
 Design and plan live in `docs/superpowers/specs/` and `docs/superpowers/plans/`; business-rule rationale is in README.md.
 
@@ -41,7 +41,7 @@ Setup: copy `.env.example` to `.env`, fill it in, then run `npm run db:generate`
 - **Auth:** `src/lib/auth.ts` (Credentials provider, scrypt password hashing in `src/lib/senha.ts`, JWT sessions, sign-in at `/login`), `src/proxy.ts` (optimistic redirect via the `authorized` callback; only `/` and `/login` are public). Real checks: `exigirSessao()` in `src/lib/sessao.ts` is called in every Server Action and in every server component that reads the database.
 - **Server Actions** are in `src/app/(dashboard)/actions.ts`: validate with Zod, run through `executar()` which turns `ErroNegocio` into a message shown in the UI. Business logic is in `src/lib/antecipacoes/` and `src/lib/titulos/`; writes that can race use conditional `updateMany` or transactions.
 - **UI:** screens under the `src/app/(dashboard)/` route group (`antecipacoes`, `titulos`, `contas`); data-reading components call `await connection()` so they never prerender. Reusable client pieces: `src/components/formulario-acao.tsx` and `botao-acao.tsx` (forms/buttons bound to Server Actions with `useActionState`). shadcn/ui lives in `src/components/ui/`.
-- **GestãoClick client** is `src/lib/gestaoclick/client.ts` (not used by any screen yet).
+- **GestãoClick sync** (`src/lib/gestaoclick/`): `client.ts` is the HTTP client (headers `access-token` / `secret-access-token`); `recebimentos.ts` reads `/recebimentos` (GET only, `pagina`/`limit` pagination, Zod-validated, only the fields we use) and converts rows to titles; `plano.ts` is a pure planner (create / update / baixar), `sincronizar.ts` runs it against the database. ERP quirks: without dates the API returns only the current month; without `loja_id` only the key's default store; `valor_total` (valor + juros - desconto) is what the client pays. The ERP's baixa is imported but never undone locally, and the value of a título with an ATIVA antecipação is never changed by the sync.
 - The React Compiler is enabled (`babel-plugin-react-compiler`); `tsconfig` targets ES2020 for `bigint` literals.
 
 ## Language

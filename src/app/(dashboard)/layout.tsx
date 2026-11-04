@@ -20,6 +20,7 @@ export default function DashboardLayout({
           <span className="font-semibold">Financeiro</span>
           <Link href="/antecipacoes">Antecipações</Link>
           <Link href="/titulos">Títulos</Link>
+          <Link href="/custos">Custos</Link>
           <Link href="/contas">Contas</Link>
         </nav>
         <form action={sair}>
