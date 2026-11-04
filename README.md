@@ -126,6 +126,7 @@ Para entender o porquê das regras (estados do título, baixa sem entrada de cai
 
 - Confirmar endpoints e formato de resposta da API GestãoClick em `src/lib/gestaoclick/client.ts`.
 - Implementar a sincronização de títulos do GestãoClick (`origem = GESTAOCLICK`).
-- Etapa 5 (feita, em revisão): lista de títulos com filtro por estado (`?estado=`), ação "cliente pagou" (baixa) e totais no topo.
+- Relatório de custo financeiro (juros e tarifas) por período e por banco. Hoje a lista de títulos só mostra os totais gerais.
+- Testes automáticos das operações no banco (concorrência e índice parcial de uma antecipação ativa por título).
 - Paginar a lista de títulos e antecipações (hoje sem `take`).
 - Instalar componentes shadcn adicionais conforme necessário.

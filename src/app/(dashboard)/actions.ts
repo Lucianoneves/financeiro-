@@ -1,10 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import type { ZodType } from "zod";
 
-import { auth } from "@/lib/auth";
+import { exigirSessao } from "@/lib/sessao";
 import { cancelarAntecipacao, registrarAntecipacao } from "@/lib/antecipacoes/servico";
 import { ErroNegocio } from "@/lib/antecipacoes/regras";
 import { getDb } from "@/lib/db";
@@ -13,13 +12,6 @@ import { antecipacaoSchema } from "@/lib/validations/antecipacao";
 import { contaSchema, tituloSchema } from "@/lib/validations/cadastros";
 
 export type EstadoForm = { erro?: string; sucesso?: string };
-
-async function exigirSessao() {
-  // Server Actions são alcançáveis por POST direto: o proxy não basta.
-  const sessao = await auth();
-  // Sessão expirada: manda para o login em vez de estourar uma exceção na tela.
-  if (!sessao?.user) redirect("/login");
-}
 
 // Campos de dinheiro aceitam vírgula decimal ("1234,50") e viram "1234.50".
 const CAMPOS_DINHEIRO = ["valor", "valorBruto", "jurosCobrados", "tarifasCobradas"];
@@ -98,28 +90,32 @@ export async function registrarAntecipacaoAction(
   });
 }
 
-export async function baixarTituloAction(formData: FormData) {
+// As duas ações abaixo devolvem o erro de negócio (ex.: "já foi baixado") para
+// a tela mostrar ao lado do botão, em vez de falhar em silêncio.
+export async function baixarTituloAction(
+  _: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
   await exigirSessao();
   const id = String(formData.get("id") ?? "");
-  try {
+  return executar(async () => {
     await baixarTitulo(id);
-  } catch (e) {
-    if (!(e instanceof ErroNegocio)) throw e;
-    // Já baixado/inexistente: a lista recarregada mostra a situação real.
-  }
-  revalidatePath("/titulos");
-  revalidatePath("/antecipacoes");
+    revalidatePath("/titulos");
+    revalidatePath("/antecipacoes");
+    return "Título baixado.";
+  });
 }
 
-export async function cancelarAntecipacaoAction(formData: FormData) {
+export async function cancelarAntecipacaoAction(
+  _: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
   await exigirSessao();
   const id = String(formData.get("id") ?? "");
-  try {
+  return executar(async () => {
     await cancelarAntecipacao(id);
-  } catch (e) {
-    if (!(e instanceof ErroNegocio)) throw e;
-    // Estado inválido (já cancelada/baixada): a lista recarregada mostra a situação real.
-  }
-  revalidatePath("/titulos");
-  revalidatePath("/antecipacoes");
+    revalidatePath("/titulos");
+    revalidatePath("/antecipacoes");
+    return "Antecipação cancelada.";
+  });
 }
