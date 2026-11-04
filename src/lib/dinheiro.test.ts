@@ -20,4 +20,10 @@ describe("dinheiro", () => {
     }
     expect(() => paraCentavos("1,50")).toThrow();
   });
+
+  it("respeita o limite de 12 dígitos inteiros (Decimal(14,2))", () => {
+    expect(valorMonetarioValido("999999999999.99")).toBe(true);
+    expect(valorMonetarioValido("1000000000000.00")).toBe(false);
+    expect(valorMonetarioValido("99999999999999")).toBe(false);
+  });
 });
