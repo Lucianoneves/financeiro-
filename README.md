@@ -44,12 +44,15 @@ src/
     api/auth/[...nextauth]/    rotas do Auth.js
     api/health/                healthcheck
     login/                     página de login
+    (dashboard)/contas|titulos cadastros; antecipacoes registro e cancelamento
+    (dashboard)/actions.ts     Server Actions (exigem sessão, validam com Zod)
   proxy.ts                   protege as rotas do dashboard (exige sessão)
   components/ui/             componentes shadcn/ui
   generated/prisma/          cliente Prisma gerado (não versionado)
   lib/
     auth.ts                  configuração do Auth.js
     db.ts                    cliente Prisma (adapter Neon)
+    antecipacoes/            regras e serviço de antecipação (transação)
     senha.ts                 hash e verificação de senha (bcryptjs)
     dinheiro.ts              aritmética monetária em centavos
     env.ts                   validação das variáveis de ambiente (Zod, lazy)
@@ -121,5 +124,5 @@ src/
 
 - Confirmar endpoints e formato de resposta da API GestãoClick em `src/lib/gestaoclick/client.ts`.
 - Implementar a sincronização de títulos do GestãoClick (`origem = GESTAOCLICK`).
-- Construir as telas e ações de antecipação em `src/app/(dashboard)/antecipacoes/`.
+- Etapa 5: lista de títulos com filtro por estado, ação "cliente pagou" (baixa) e totais no topo.
 - Instalar componentes shadcn adicionais conforme necessário.
