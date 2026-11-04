@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { ZodType } from "zod";
 
 import { auth } from "@/lib/auth";
 import { cancelarAntecipacao, registrarAntecipacao } from "@/lib/antecipacoes/servico";
 import { ErroNegocio } from "@/lib/antecipacoes/regras";
 import { getDb } from "@/lib/db";
+import { baixarTitulo } from "@/lib/titulos/servico";
 import { antecipacaoSchema } from "@/lib/validations/antecipacao";
 import { contaSchema, tituloSchema } from "@/lib/validations/cadastros";
 
@@ -15,7 +17,8 @@ export type EstadoForm = { erro?: string; sucesso?: string };
 async function exigirSessao() {
   // Server Actions são alcançáveis por POST direto: o proxy não basta.
   const sessao = await auth();
-  if (!sessao?.user) throw new Error("Não autorizado");
+  // Sessão expirada: manda para o login em vez de estourar uma exceção na tela.
+  if (!sessao?.user) redirect("/login");
 }
 
 // Campos de dinheiro aceitam vírgula decimal ("1234,50") e viram "1234.50".
@@ -93,6 +96,19 @@ export async function registrarAntecipacaoAction(
     revalidatePath("/antecipacoes");
     return "Antecipação registrada.";
   });
+}
+
+export async function baixarTituloAction(formData: FormData) {
+  await exigirSessao();
+  const id = String(formData.get("id") ?? "");
+  try {
+    await baixarTitulo(id);
+  } catch (e) {
+    if (!(e instanceof ErroNegocio)) throw e;
+    // Já baixado/inexistente: a lista recarregada mostra a situação real.
+  }
+  revalidatePath("/titulos");
+  revalidatePath("/antecipacoes");
 }
 
 export async function cancelarAntecipacaoAction(formData: FormData) {
