@@ -6,6 +6,7 @@ import { baixarTituloAction, criarTitulo } from "@/app/(dashboard)/actions";
 import { Campo, FormularioAcao } from "@/components/formulario-acao";
 import { Button } from "@/components/ui/button";
 import { getDb } from "@/lib/db";
+import { totaisDeAntecipacoes } from "@/lib/antecipacoes/totais";
 import { deCentavos, paraCentavos } from "@/lib/dinheiro";
 import {
   ESTADOS_TITULO,
@@ -45,12 +46,35 @@ async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
 
   const todos = await getDb().titulo.findMany({
     orderBy: { vencimento: "asc" },
-    include: { antecipacoes: { select: { status: true } } },
+    include: {
+      antecipacoes: {
+        select: {
+          status: true,
+          valorLiquido: true,
+          juros: true,
+          tarifas: true,
+          conta: { select: { nome: true } },
+        },
+      },
+    },
   });
   const titulos = todos.map((t) => ({
     ...t,
     estado: estadoDoTitulo(t, t.antecipacoes),
+    // No máximo uma ATIVA por título (garantido pelo banco).
+    ativa: t.antecipacoes.find((a) => a.status === "ATIVA"),
   }));
+  const recebidos = totaisDeAntecipacoes(
+    titulos.flatMap((t) =>
+      t.antecipacoes.map((a) => ({
+        status: a.status,
+        valorLiquido: a.valorLiquido.toFixed(2),
+        juros: a.juros.toFixed(2),
+        tarifas: a.tarifas.toFixed(2),
+        tituloBaixado: t.baixadoEm !== null,
+      })),
+    ),
+  );
   const totais = totaisPorEstado(
     titulos.map((t) => ({ estado: t.estado, valorCentavos: paraCentavos(t.valor.toFixed(2)) })),
   );
@@ -66,6 +90,25 @@ async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
             <p className="text-xs text-zinc-500">{totais[estado].quantidade} título(s)</p>
           </div>
         ))}
+      </section>
+
+      <section
+        aria-label="Dinheiro recebido nas antecipações"
+        className="grid max-w-4xl gap-3 sm:grid-cols-4"
+      >
+        <Cartao
+          rotulo="Recebido (antecipações ativas)"
+          valor={recebidos.recebidoCentavos}
+          nota="Não muda quando o cliente paga"
+        />
+        <Cartao
+          rotulo="Recebido, pendente de baixa"
+          valor={recebidos.recebidoPendenteCentavos}
+          nota="Cliente ainda não pagou"
+          destaque
+        />
+        <Cartao rotulo="Juros pagos" valor={recebidos.jurosCentavos} />
+        <Cartao rotulo="Tarifas pagas" valor={recebidos.tarifasCentavos} />
       </section>
 
       <nav className="flex flex-wrap gap-2 text-sm" aria-label="Filtrar por estado">
@@ -90,6 +133,9 @@ async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
               <th>Valor</th>
               <th>Vencimento</th>
               <th>Estado</th>
+              <th>Recebido (líquido)</th>
+              <th>Juros + tarifas</th>
+              <th>Conta</th>
               <th>
                 <span className="sr-only">Ações</span>
               </th>
@@ -102,7 +148,23 @@ async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
                 <td>{t.cliente}</td>
                 <td>R$ {t.valor.toFixed(2)}</td>
                 <td>{t.vencimento.toLocaleDateString("pt-BR", { timeZone: "UTC" })}</td>
-                <td>{ROTULO_ESTADO[t.estado]}</td>
+                <td
+                  className={
+                    t.estado === "ANTECIPADO_PENDENTE" ? "font-medium text-amber-700 dark:text-amber-400" : undefined
+                  }
+                >
+                  {ROTULO_ESTADO[t.estado]}
+                </td>
+                <td>{t.ativa ? `R$ ${t.ativa.valorLiquido.toFixed(2)}` : "—"}</td>
+                <td>
+                  {t.ativa
+                    ? `R$ ${deCentavos(
+                        paraCentavos(t.ativa.juros.toFixed(2)) +
+                          paraCentavos(t.ativa.tarifas.toFixed(2)),
+                      )}`
+                    : "—"}
+                </td>
+                <td>{t.ativa ? t.ativa.conta.nome : "—"}</td>
                 <td>
                   {t.estado !== "BAIXADO" && (
                     <form action={baixarTituloAction}>
@@ -124,6 +186,32 @@ async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
         </table>
       )}
     </>
+  );
+}
+
+function Cartao({
+  rotulo,
+  valor,
+  nota,
+  destaque,
+}: {
+  rotulo: string;
+  valor: bigint;
+  nota?: string;
+  destaque?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-md border p-3 ${
+        destaque
+          ? "border-amber-500 dark:border-amber-400"
+          : "border-zinc-200 dark:border-zinc-800"
+      }`}
+    >
+      <p className="text-xs text-zinc-500">{rotulo}</p>
+      <p className="text-lg font-semibold">R$ {deCentavos(valor)}</p>
+      {nota && <p className="text-xs text-zinc-500">{nota}</p>}
+    </div>
   );
 }
 

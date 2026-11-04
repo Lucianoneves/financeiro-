@@ -100,7 +100,13 @@ async function ListaAntecipacoes() {
             <td>R$ {a.juros.toFixed(2)}</td>
             <td>R$ {a.tarifas.toFixed(2)}</td>
             <td>R$ {a.valorLiquido.toFixed(2)}</td>
-            <td>{a.status === "ATIVA" ? "Ativa" : "Cancelada"}</td>
+            <td>
+              {a.status === "CANCELADA"
+                ? "Cancelada"
+                : a.titulo.baixadoEm
+                  ? "Ativa · título baixado"
+                  : "Ativa · pendente de baixa"}
+            </td>
             <td>
               {a.status === "ATIVA" && !a.titulo.baixadoEm && (
                 <form action={cancelarAntecipacaoAction}>
