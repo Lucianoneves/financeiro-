@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { criarConta } from "@/app/(dashboard)/actions";
 import { Campo, FormularioAcao } from "@/components/formulario-acao";
 import { getDb } from "@/lib/db";
+import { exigirSessao } from "@/lib/sessao";
 
 export default function ContasPage() {
   return (
@@ -24,6 +25,7 @@ export default function ContasPage() {
 
 async function ListaContas() {
   await connection(); // lê o banco a cada requisição, nunca no prerender
+  await exigirSessao();
   const contas = await getDb().contaBancaria.findMany({ orderBy: { nome: "asc" } });
   if (contas.length === 0) return <p>Nenhuma conta cadastrada.</p>;
   return (

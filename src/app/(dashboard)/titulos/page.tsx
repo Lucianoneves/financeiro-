@@ -4,8 +4,9 @@ import { Suspense } from "react";
 
 import { baixarTituloAction, criarTitulo } from "@/app/(dashboard)/actions";
 import { Campo, FormularioAcao } from "@/components/formulario-acao";
-import { Button } from "@/components/ui/button";
+import { BotaoAcao } from "@/components/botao-acao";
 import { getDb } from "@/lib/db";
+import { exigirSessao } from "@/lib/sessao";
 import { totaisDeAntecipacoes } from "@/lib/antecipacoes/totais";
 import { deCentavos, paraCentavos } from "@/lib/dinheiro";
 import {
@@ -42,6 +43,7 @@ export default function TitulosPage({ searchParams }: { searchParams: SearchPara
 
 async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
   await connection(); // lê o banco a cada requisição, nunca no prerender
+  await exigirSessao();
   const filtro = lerFiltroEstado((await searchParams).estado);
 
   const todos = await getDb().titulo.findMany({
@@ -167,17 +169,12 @@ async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
                 <td>{t.ativa ? t.ativa.conta.nome : "—"}</td>
                 <td>
                   {t.estado !== "BAIXADO" && (
-                    <form action={baixarTituloAction}>
-                      <input type="hidden" name="id" value={t.id} />
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        size="sm"
-                        aria-label={`Cliente pagou: título ${t.numero} de ${t.cliente}`}
-                      >
-                        Cliente pagou
-                      </Button>
-                    </form>
+                    <BotaoAcao
+                      action={baixarTituloAction}
+                      id={t.id}
+                      rotulo="Cliente pagou"
+                      rotuloAcessivel={`Cliente pagou: título ${t.numero} de ${t.cliente}`}
+                    />
                   )}
                 </td>
               </tr>

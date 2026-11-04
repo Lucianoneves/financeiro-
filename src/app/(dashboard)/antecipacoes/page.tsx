@@ -6,8 +6,9 @@ import {
   registrarAntecipacaoAction,
 } from "@/app/(dashboard)/actions";
 import { Campo, FormularioAcao, Selecao } from "@/components/formulario-acao";
-import { Button } from "@/components/ui/button";
+import { BotaoAcao } from "@/components/botao-acao";
 import { getDb } from "@/lib/db";
+import { exigirSessao } from "@/lib/sessao";
 
 export default function AntecipacoesPage() {
   return (
@@ -23,6 +24,7 @@ export default function AntecipacoesPage() {
 
 async function NovaAntecipacao() {
   await connection(); // lê o banco a cada requisição, nunca no prerender
+  await exigirSessao();
   const db = getDb();
   const [titulos, contas] = await Promise.all([
     db.titulo.findMany({
@@ -69,6 +71,7 @@ async function NovaAntecipacao() {
 
 async function ListaAntecipacoes() {
   await connection(); // lê o banco a cada requisição, nunca no prerender
+  await exigirSessao();
   const antecipacoes = await getDb().antecipacao.findMany({
     orderBy: { criadaEm: "desc" },
     include: { titulo: true, conta: true },
@@ -109,12 +112,12 @@ async function ListaAntecipacoes() {
             </td>
             <td>
               {a.status === "ATIVA" && !a.titulo.baixadoEm && (
-                <form action={cancelarAntecipacaoAction}>
-                  <input type="hidden" name="id" value={a.id} />
-                  <Button type="submit" variant="outline" size="sm">
-                    Cancelar
-                  </Button>
-                </form>
+                <BotaoAcao
+                  action={cancelarAntecipacaoAction}
+                  id={a.id}
+                  rotulo="Cancelar"
+                  rotuloAcessivel={`Cancelar antecipação do título ${a.titulo.numero}`}
+                />
               )}
             </td>
           </tr>
