@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Financeiro
 
-## Getting Started
+Sistema de antecipação de recebíveis (boletos) integrado ao GestãoClick.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| Camada | Tecnologia |
+| --- | --- |
+| Frontend | Next.js 16 + React |
+| Linguagem | TypeScript |
+| Estilização | Tailwind CSS + shadcn/ui |
+| Backend | Route Handlers + Server Actions |
+| Banco de dados | PostgreSQL / Neon |
+| ORM | Prisma 7 |
+| Autenticação | Auth.js |
+| Integração ERP | API GestãoClick |
+| Validação | Zod |
+| Testes | Vitest + Postman |
+
+## Estrutura
+
+```
+prisma/
+  schema.prisma              modelo do banco
+prisma.config.ts             configuração do Prisma (lê DATABASE_URL)
+src/
+  app/
+    (dashboard)/antecipacoes/  telas de antecipação
+    api/auth/[...nextauth]/    rotas do Auth.js
+    api/health/                healthcheck
+  components/ui/             componentes shadcn/ui
+  lib/
+    auth.ts                  configuração do Auth.js
+    db.ts                    cliente Prisma (adapter Neon)
+    env.ts                   validação das variáveis de ambiente
+    gestaoclick/client.ts    cliente HTTP da API GestãoClick
+    validations/             schemas Zod
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Configuração
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Instale as dependências:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   npm install
+   ```
 
-## Learn More
+2. Copie o arquivo de exemplo e preencha as variáveis:
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   cp .env.example .env.local
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   Para o `AUTH_SECRET`, rode `openssl rand -base64 32`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. Gere o cliente Prisma:
 
-## Deploy on Vercel
+   ```bash
+   npm run db:generate
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. Rode o servidor de desenvolvimento:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```bash
+   npm run dev
+   ```
+
+## Scripts
+
+| Comando | Função |
+| --- | --- |
+| `npm run dev` | servidor de desenvolvimento |
+| `npm run build` | build de produção |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | checagem de tipos |
+| `npm test` | testes com Vitest |
+| `npm run db:generate` | gera o cliente Prisma |
+| `npm run db:migrate` | cria e aplica migrations |
+| `npm run db:studio` | interface visual do banco |
+
+## Pendências
+
+- Modelar títulos, antecipações e movimentações no `prisma/schema.prisma`.
+- Definir provedor de login em `src/lib/auth.ts`.
+- Confirmar endpoints e formato de resposta da API GestãoClick em `src/lib/gestaoclick/client.ts`.
+- Adicionar `src/proxy.ts` para proteger as rotas do dashboard.
+- Instalar componentes shadcn adicionais quando forem necessários.

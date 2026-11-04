@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrigemTitulo {
+  MANUAL
+  GESTAOCLICK
+}
+
+enum StatusAntecipacao {
+  ATIVA
+  CANCELADA
+}
+
+model Usuario {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  nome      String
+  senhaHash String
+  criadoEm  DateTime @default(now())
+}
+
+// Banco/conta onde o dinheiro da antecipação entra.
+model ContaBancaria {
+  id           String        @id @default(cuid())
+  nome         String
+  criadaEm     DateTime      @default(now())
+  antecipacoes Antecipacao[]
+}
+
+// Título a receber. Origem MANUAL é digitado; GESTAOCLICK virá da sincronização.
+model Titulo {
+  id         String       @id @default(cuid())
+  numero     String
+  cliente    String
+  valor      Decimal      @db.Decimal(14, 2)
+  vencimento DateTime     @db.Date
+  origem     OrigemTitulo @default(MANUAL)
+  idExterno  String?
+  // Preenchido quando o cliente paga o boleto. Quitação sem entrada de caixa.
+  baixadoEm  DateTime?
+  criadoEm   DateTime     @default(now())
+
+  antecipacoes Antecipacao[]
+
+  @@unique([origem, idExterno])
+}
+
+// Um boleto por antecipação. No máximo uma ATIVA por título: o índice único
+// parcial está na migration (o Prisma não declara índices parciais).
+model Antecipacao {
+  id              String            @id @default(cuid())
+  tituloId        String
+  contaId         String
+  valorBruto      Decimal           @db.Decimal(14, 2)
+  juros           Decimal           @db.Decimal(14, 2)
+  tarifas         Decimal           @db.Decimal(14, 2)
+  valorLiquido    Decimal           @db.Decimal(14, 2)
+  dataAntecipacao DateTime          @db.Date
+  status          StatusAntecipacao @default(ATIVA)
+  criadaEm        DateTime          @default(now())
+
+  titulo Titulo        @relation(fields: [tituloId], references: [id])
+  conta  ContaBancaria @relation(fields: [contaId], references: [id])
+
+  @@index([tituloId])
+  @@index([contaId])
+}
