@@ -35,6 +35,7 @@ A empresa registra títulos a receber (digitados manualmente ou sincronizados do
 prisma/
   schema.prisma              modelo do banco (Usuario, ContaBancaria, Titulo, Antecipacao)
   migrations/                migrations versionadas
+scripts/criar-usuario.ts    cria o primeiro usuário
 prisma.config.ts             configuração do Prisma (lê DATABASE_URL)
 docs/superpowers/            especificação de design e plano de implementação
 src/
@@ -42,17 +43,25 @@ src/
     (dashboard)/antecipacoes/  telas de antecipação
     api/auth/[...nextauth]/    rotas do Auth.js
     api/health/                healthcheck
+    login/                     página de login
+    (dashboard)/contas|titulos cadastros; antecipacoes registro e cancelamento
+    (dashboard)/actions.ts     Server Actions (exigem sessão, validam com Zod)
+  proxy.ts                   protege as rotas do dashboard (exige sessão)
   components/ui/             componentes shadcn/ui
   generated/prisma/          cliente Prisma gerado (não versionado)
   lib/
     auth.ts                  configuração do Auth.js
     db.ts                    cliente Prisma (adapter Neon)
+    antecipacoes/            regras e serviço de antecipação (transação)
+    senha.ts                 hash e verificação de senha (bcryptjs)
     dinheiro.ts              aritmética monetária em centavos
     env.ts                   validação das variáveis de ambiente (Zod, lazy)
     gestaoclick/client.ts    cliente HTTP da API GestãoClick
     titulos/estado.ts        estado derivado do título
     validations/             schemas Zod
 ```
+
+Para entender o porquê das regras (estados do título, baixa sem entrada de caixa, uma antecipação ativa por título), leia [docs/explicacao-antecipacao-recebiveis.md](docs/explicacao-antecipacao-recebiveis.md).
 
 ## Pré-requisitos
 
@@ -111,12 +120,11 @@ src/
 | `npm run db:generate` | gera o cliente Prisma |
 | `npm run db:migrate` | cria e aplica migrations |
 | `npm run db:studio` | interface visual do banco |
+| `npm run usuario:criar -- email "Nome" "senha"` | cria (ou redefine a senha de) um usuário para o login |
 
 ## Pendências
 
-- Definir o provedor de login em `src/lib/auth.ts` (hoje sem providers).
 - Confirmar endpoints e formato de resposta da API GestãoClick em `src/lib/gestaoclick/client.ts`.
-- Adicionar `src/proxy.ts` para proteger as rotas do dashboard.
 - Implementar a sincronização de títulos do GestãoClick (`origem = GESTAOCLICK`).
-- Construir as telas e ações de antecipação em `src/app/(dashboard)/antecipacoes/`.
+- Etapa 5: lista de títulos com filtro por estado, ação "cliente pagou" (baixa) e totais no topo.
 - Instalar componentes shadcn adicionais conforme necessário.
