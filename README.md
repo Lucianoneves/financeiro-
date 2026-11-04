@@ -61,6 +61,8 @@ src/
     validations/             schemas Zod
 ```
 
+Para entender o porquê das regras (estados do título, baixa sem entrada de caixa, uma antecipação ativa por título), leia [docs/explicacao-antecipacao-recebiveis.md](docs/explicacao-antecipacao-recebiveis.md).
+
 ## Pré-requisitos
 
 - Node.js 20+ e npm
