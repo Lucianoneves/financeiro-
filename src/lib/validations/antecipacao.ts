@@ -9,6 +9,7 @@ const dinheiro = z
 export const antecipacaoSchema = z
   .object({
     tituloId: z.string().min(1),
+    contaId: z.string().min(1),
     valorBruto: dinheiro.refine(
       (v) => !valorMonetarioValido(v) || paraCentavos(v) > 0n,
       "Deve ser maior que zero",

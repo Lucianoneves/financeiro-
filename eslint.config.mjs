@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Skills de ferramentas de IA, não fazem parte da aplicação.
+    ".agents/**",
+    ".aider-desk/**",
+    ".claude/**",
+    "src/generated/**",
   ]),
 ]);
 

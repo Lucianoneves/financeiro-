@@ -3,6 +3,7 @@ import { antecipacaoSchema, valorLiquido } from "./antecipacao";
 
 const base = {
   tituloId: "123",
+  contaId: "456",
   valorBruto: "1000.00",
   jurosCobrados: "25.00",
   tarifasCobradas: "5.00",
