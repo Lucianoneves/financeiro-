@@ -44,8 +44,19 @@ export async function registrarAntecipacao(dados: AntecipacaoInput) {
   }
 }
 
+// O cancelamento é um update condicional: duas requisições simultâneas não
+// cancelam duas vezes. Contra uma baixa concorrente a garantia é de melhor
+// esforço (o filtro lê o título sem travá-lo); como a baixa tem prioridade
+// no estado do título, o pior caso é uma antecipação cancelada no histórico.
 export async function cancelarAntecipacao(id: string) {
   const db = getDb();
+  const { count } = await db.antecipacao.updateMany({
+    where: { id, status: "ATIVA", titulo: { baixadoEm: null } },
+    data: { status: "CANCELADA" },
+  });
+  if (count === 1) return;
+
+  // Nada foi alterado: descobre o motivo só para devolver uma mensagem clara.
   const antecipacao = await db.antecipacao.findUnique({
     where: { id },
     include: { titulo: { select: { baixadoEm: true } } },
@@ -57,5 +68,5 @@ export async function cancelarAntecipacao(id: string) {
   if (antecipacao.titulo.baixadoEm) {
     throw new ErroNegocio("Não é possível cancelar a antecipação de um título já baixado.");
   }
-  return db.antecipacao.update({ where: { id }, data: { status: "CANCELADA" } });
+  throw new ErroNegocio("O estado da antecipação mudou. Recarregue a página e tente de novo.");
 }

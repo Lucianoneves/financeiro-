@@ -1,4 +1,4 @@
-import { getEnv } from "@/lib/env";
+import { getGestaoClickEnv } from "@/lib/env";
 
 export class GestaoClickError extends Error {
   constructor(
@@ -16,7 +16,7 @@ export async function gestaoClickFetch<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const env = getEnv();
+  const env = getGestaoClickEnv();
 
   const response = await fetch(`${env.GESTAOCLICK_API_URL}${path}`, {
     ...init,

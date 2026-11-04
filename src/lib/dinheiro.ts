@@ -2,7 +2,8 @@
 // e ao que o Prisma aceita para Decimal. A aritmética é feita em centavos
 // inteiros (bigint) para nunca haver erro de ponto flutuante.
 
-const FORMATO = /^\d+(\.\d{1,2})?$/;
+// Até 12 dígitos inteiros: o banco usa Decimal(14,2).
+const FORMATO = /^\d{1,12}(\.\d{1,2})?$/;
 
 export function valorMonetarioValido(texto: string): boolean {
   return FORMATO.test(texto);
