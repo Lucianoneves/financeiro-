@@ -17,12 +17,31 @@ enum StatusAntecipacao {
   CANCELADA
 }
 
+// ADMIN (financeiro) acessa tudo; PRODUCAO (gestor de produção) só o módulo /producao.
+enum PerfilUsuario {
+  ADMIN
+  PRODUCAO
+}
+
 model Usuario {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String        @id @default(cuid())
+  email     String        @unique
   nome      String
   senhaHash String
-  criadoEm  DateTime @default(now())
+  // Usuários já existentes continuam administradores.
+  perfil    PerfilUsuario @default(ADMIN)
+  criadoEm  DateTime      @default(now())
+}
+
+// Falhas de login recentes, para limitar tentativas por e-mail (src/lib/login-limite.ts).
+// Sem relação com Usuario de propósito: também conta e-mails que não existem.
+model TentativaLogin {
+  id       String   @id @default(cuid())
+  email    String
+  criadoEm DateTime @default(now())
+
+  @@index([email, criadoEm])
+  @@index([criadoEm])
 }
 
 // Banco/conta onde o dinheiro da antecipação entra.
@@ -70,4 +89,167 @@ model Antecipacao {
 
   @@index([tituloId])
   @@index([contaId])
+}
+
+// ---------------------------------------------------------------------------
+// Controle de Produção. Módulo independente do financeiro: nenhum model acima
+// referencia estes, e eles não referenciam os de cima. Quantidades são peças
+// inteiras. Indicadores (OEE etc.) são derivados, nunca gravados.
+// ---------------------------------------------------------------------------
+
+enum StatusOrdem {
+  ABERTA
+  ENCERRADA
+}
+
+model Maquina {
+  id       String   @id @default(cuid())
+  codigo   String?   @unique
+  nome     String   @unique
+  ativo    Boolean  @default(true)
+  criadaEm DateTime @default(now())
+
+  velocidades  VelocidadeNominal[]
+  apontamentos ApontamentoProducao[]
+}
+
+model Produto {
+  id       String   @id @default(cuid())
+  codigo   String   @unique
+  nome     String
+  ativo    Boolean  @default(true)
+  criadoEm DateTime @default(now())
+
+  velocidades VelocidadeNominal[]
+  ordens      OrdemProducao[]
+}
+
+// Cadastros criados pelo próprio apontamento (sem tela). `nomeNormalizado` é a
+// chave de comparação (ver src/lib/producao/nomes.ts).
+model Turno {
+  id               String  @id @default(cuid())
+  nome             String  @unique
+  nomeNormalizado  String  @unique
+  ativo            Boolean @default(true)
+
+  apontamentos ApontamentoProducao[]
+}
+
+// Quem opera a máquina. Não é usuário do sistema (o supervisor lança tudo).
+model Operador {
+  id              String  @id @default(cuid())
+  // Número sequencial gerado pelo banco; o código OP-001 é derivado dele (formato.ts).
+  numero          Int     @unique @default(autoincrement())
+  nome            String
+  nomeNormalizado String  @unique
+  matricula       String? @unique
+  ativo           Boolean @default(true)
+
+  apontamentos ApontamentoProducao[]
+}
+
+// Peças por hora que o produto deveria sair em cada máquina. Base do desempenho.
+model VelocidadeNominal {
+  id           String @id @default(cuid())
+  maquinaId    String
+  produtoId    String
+  pecasPorHora Int
+
+  maquina Maquina @relation(fields: [maquinaId], references: [id])
+  produto Produto @relation(fields: [produtoId], references: [id])
+
+  @@unique([maquinaId, produtoId])
+  @@index([produtoId])
+}
+
+model OrdemProducao {
+  id                  String      @id @default(cuid())
+  numero              String      @unique
+  produtoId           String
+  quantidadePlanejada Int
+  status              StatusOrdem @default(ABERTA)
+  criadaEm            DateTime    @default(now())
+
+  produto      Produto               @relation(fields: [produtoId], references: [id])
+  apontamentos ApontamentoProducao[]
+
+  @@index([produtoId])
+}
+
+model MotivoParada {
+  id              String  @id @default(cuid())
+  nome            String  @unique
+  nomeNormalizado String  @unique
+  ativo           Boolean @default(true)
+
+  paradas ParadaApontamento[]
+}
+
+model MotivoPerda {
+  id              String  @id @default(cuid())
+  nome            String  @unique
+  nomeNormalizado String  @unique
+  ativo           Boolean @default(true)
+
+  perdas PerdaApontamento[]
+}
+
+// Um período de uma máquina operada por um operador numa ordem. O dia de
+// produção (`data`) vem do início, em horário de Brasília. A velocidade nominal
+// é copiada para cá: mudar o cadastro depois não altera o histórico. As
+// restrições (fim > início, sem sobreposição na mesma máquina) estão na migration.
+model ApontamentoProducao {
+  id                String   @id @default(cuid())
+  data              DateTime @db.Date
+  turnoId           String
+  maquinaId         String
+  operadorId        String
+  ordemId           String
+  inicio            DateTime
+  fim               DateTime
+  quantidadeBoa     Int
+  velocidadeNominal Int
+  // E-mail do supervisor que lançou (sem relação: o módulo não toca em Usuario).
+  registradoPor     String
+  criadoEm          DateTime @default(now())
+
+  turno    Turno         @relation(fields: [turnoId], references: [id])
+  maquina  Maquina       @relation(fields: [maquinaId], references: [id])
+  operador Operador      @relation(fields: [operadorId], references: [id])
+  ordem    OrdemProducao @relation(fields: [ordemId], references: [id])
+
+  paradas ParadaApontamento[]
+  perdas  PerdaApontamento[]
+
+  @@index([data])
+  @@index([maquinaId])
+  @@index([operadorId])
+  @@index([ordemId])
+  @@index([turnoId])
+}
+
+model ParadaApontamento {
+  id            String @id @default(cuid())
+  apontamentoId String
+  motivoId      String
+  minutos       Int
+
+  apontamento ApontamentoProducao @relation(fields: [apontamentoId], references: [id], onDelete: Cascade)
+  motivo      MotivoParada        @relation(fields: [motivoId], references: [id])
+
+  @@index([apontamentoId])
+  @@index([motivoId])
+}
+
+model PerdaApontamento {
+  id            String @id @default(cuid())
+  apontamentoId String
+  motivoId      String
+  quantidade    Int
+
+  apontamento ApontamentoProducao @relation(fields: [apontamentoId], references: [id], onDelete: Cascade)
+  motivo      MotivoPerda         @relation(fields: [motivoId], references: [id])
+
+  @@index([apontamentoId])
+  @@index([motivoId])
 }
