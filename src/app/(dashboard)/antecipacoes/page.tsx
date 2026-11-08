@@ -63,7 +63,9 @@ async function NovaAntecipacao() {
       <Campo rotulo="Tarifas cobradas" name="tarifasCobradas" inputMode="decimal" defaultValue="0" required />
       <Campo rotulo="Data da antecipação" name="dataAntecipacao" type="date" required />
       <p className="text-xs text-zinc-500">
-        O valor líquido (bruto − juros − tarifas) é calculado ao salvar.
+        Digite juros e tarifas como aparecem no borderô (espelho da antecipação)
+        do banco: o ERP e o extrato não trazem esses valores. O valor líquido
+        (bruto − juros − tarifas) é calculado ao salvar.
       </p>
     </FormularioAcao>
   );

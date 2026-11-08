@@ -56,11 +56,14 @@ async function SincronizarGestaoClick() {
   return (
     <FormularioAcao action={sincronizarAction} rotuloEnviar="Sincronizar com o GestãoClick">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Importa os recebimentos em aberto e atualiza as baixas. Só lê o
-        GestãoClick; nada é alterado lá. O período vale para o vencimento (ou
-        a data da baixa, nos já baixados).
+        Importa os recebimentos do GestãoClick e atualiza valor e vencimento.
+        Só lê o GestãoClick; nada é alterado lá. A baixa do ERP não é
+        importada: lá ela é o pagamento da antecipação pelo banco, e aqui só
+        o botão &quot;Cliente pagou&quot; baixa um título. O período vale para o
+        vencimento (ou a data da baixa no ERP, nos já baixados): um período
+        longo para trás traz títulos antigos já pagos pelo cliente.
       </p>
-      <Campo rotulo="Vencimento de" name="dataInicio" type="date" defaultValue={diasDeHoje(-180)} required />
+      <Campo rotulo="Vencimento de" name="dataInicio" type="date" defaultValue={diasDeHoje(-60)} required />
       <Campo rotulo="até" name="dataFim" type="date" defaultValue={diasDeHoje(365)} required />
     </FormularioAcao>
   );

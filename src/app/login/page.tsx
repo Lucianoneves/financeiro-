@@ -2,8 +2,10 @@ import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { CampoSenha } from "@/components/campo-senha";
 import { Button } from "@/components/ui/button";
 import { auth, signIn } from "@/lib/auth";
+import { paginaInicial, perfilDe } from "@/lib/perfil";
 
 async function entrar(formData: FormData) {
   "use server";
@@ -42,7 +44,8 @@ async function FormularioLogin({
 }: {
   searchParams: Promise<{ erro?: string }>;
 }) {
-  if (await auth()) redirect("/antecipacoes");
+  const sessao = await auth();
+  if (sessao) redirect(paginaInicial(perfilDe(sessao.user?.perfil)));
   const { erro } = await searchParams;
 
   return (
@@ -66,16 +69,7 @@ async function FormularioLogin({
           className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
-        Senha
-        <input
-          name="senha"
-          type="password"
-          required
-          autoComplete="current-password"
-          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
-        />
-      </label>
+      <CampoSenha />
       <Button type="submit">Entrar</Button>
     </form>
   );
