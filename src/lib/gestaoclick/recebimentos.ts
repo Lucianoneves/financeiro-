@@ -4,7 +4,9 @@ import { deCentavos, paraCentavos, valorMonetarioValido } from "@/lib/dinheiro";
 import { gestaoClickFetch } from "./client";
 
 // Só os campos que usamos. O resto da resposta é ignorado de propósito, para a
-// integração não quebrar se o GestãoClick acrescentar campos.
+// integração não quebrar se o GestãoClick acrescentar campos. `liquidado` e
+// `data_liquidacao` ficam de fora de propósito: a baixa do ERP significa que o
+// banco pagou a antecipação, não que o cliente pagou, então não é importada.
 const textoOuNulo = z.string().nullable().optional();
 
 const recebimentoSchema = z.object({
@@ -14,17 +16,13 @@ const recebimentoSchema = z.object({
   valor_total: z.string(),
   nome_cliente: textoOuNulo,
   nome_fornecedor: textoOuNulo,
-  liquidado: z.string(),
   data_vencimento: z.string(),
-  data_liquidacao: textoOuNulo,
 });
 
+// A documentação do GestãoClick não traz `meta` na resposta de /recebimentos:
+// a paginação é decidida pelo tamanho da página, não por contadores do ERP.
+// Lista vazia vem como 200 sem `data` ("Nenhuma movimentação foi encontrada!").
 const paginaSchema = z.object({
-  meta: z.object({
-    total_paginas: z.number().nullable().optional(),
-    pagina_atual: z.number().nullable().optional(),
-  }),
-  // Lista vazia vem como 200 sem `data` ("Nenhuma movimentação foi encontrada!").
   data: z.array(recebimentoSchema).default([]),
 });
 
@@ -36,7 +34,6 @@ export type TituloDoErp = {
   cliente: string;
   valor: string;
   vencimento: Date;
-  baixadoEm: Date | null;
 };
 
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
@@ -58,11 +55,6 @@ export function recebimentoParaTitulo(
   const vencimento = dataUtc(r.data_vencimento);
   if (!vencimento) return { ignorado: "vencimento inválido" };
 
-  const baixado = r.liquidado === "1";
-  const baixadoEm = baixado
-    ? (dataUtc(r.data_liquidacao ?? "") ?? vencimento)
-    : null;
-
   return {
     titulo: {
       idExterno: r.id,
@@ -71,7 +63,6 @@ export function recebimentoParaTitulo(
       // valor_total = valor + juros - desconto: é o que o cliente paga no boleto.
       valor: deCentavos(paraCentavos(r.valor_total)),
       vencimento,
-      baixadoEm,
     },
   };
 }
@@ -93,7 +84,7 @@ export async function listarRecebimentos(filtros: Filtros): Promise<Recebimento[
 
   for (let pagina = 1; pagina <= MAXIMO_DE_PAGINAS; pagina++) {
     const q = new URLSearchParams({
-      limit: String(LIMITE_POR_PAGINA),
+      limite: String(LIMITE_POR_PAGINA),
       pagina: String(pagina),
     });
     if (filtros.dataInicio) q.set("data_inicio", filtros.dataInicio);
@@ -106,8 +97,8 @@ export async function listarRecebimentos(filtros: Filtros): Promise<Recebimento[
     );
     todos.push(...resposta.data);
 
-    const totalPaginas = resposta.meta.total_paginas ?? 0;
-    if (pagina >= totalPaginas || resposta.data.length === 0) return todos;
+    // Página com menos registros que o limite é a última.
+    if (resposta.data.length < LIMITE_POR_PAGINA) return todos;
   }
   throw new Error("Paginação do GestãoClick passou do limite de segurança.");
 }

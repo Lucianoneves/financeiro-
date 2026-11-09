@@ -31,7 +31,7 @@ Uma antecipação é o registro de **um boleto** que foi adiantado pelo banco. E
 
 Além disso, a antecipação guarda a **conta bancária** em que o dinheiro entrou e a **data** da operação.
 
-O sistema **não calcula** os juros nem as tarifas. Você digita os valores como aparecem no extrato do banco, porque cada banco cobra de um jeito e o que importa é o que foi de fato descontado. O sistema calcula só o líquido, no servidor, para que o número não dependa do que a tela enviou.
+O sistema **não calcula** os juros nem as tarifas. Você digita os valores como aparecem no borderô (o espelho da antecipação) do banco, porque o GestãoClick e o extrato não trazem esses valores e porque cada banco cobra de um jeito e o que importa é o que foi de fato descontado. O sistema calcula só o líquido, no servidor, para que o número não dependa do que a tela enviou.
 
 Há um detalhe importante sobre quem fica com o dinheiro depois: quando o cliente paga o boleto, o dinheiro vai para o **banco**, que já adiantou o valor, e não para a empresa. É por isso que o pagamento do cliente tem um tratamento especial, explicado na seção 4.
 

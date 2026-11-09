@@ -134,12 +134,7 @@ export async function sincronizarAction(
     const r = await sincronizarTitulos(v.dados!);
     revalidatePath("/titulos");
     revalidatePath("/antecipacoes");
-    const partes = [
-      `${r.criados} novo(s)`,
-      `${r.atualizados} atualizado(s)`,
-      `${r.baixados} baixado(s) no ERP`,
-    ];
-    if (r.ignoradosJaBaixados) partes.push(`${r.ignoradosJaBaixados} já baixado(s) ignorado(s)`);
+    const partes = [`${r.criados} novo(s)`, `${r.atualizados} atualizado(s)`];
     if (r.ignoradosInvalidos) partes.push(`${r.ignoradosInvalidos} com dados inválidos ignorado(s)`);
     if (r.valorDivergente) partes.push(`${r.valorDivergente} com valor diferente no ERP e antecipação ativa (não alterado)`);
     if (r.naoVerificados) partes.push(`${r.naoVerificados} fora da janela não conferido(s)`);

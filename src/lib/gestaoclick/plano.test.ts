@@ -10,7 +10,6 @@ const remoto = (extra: Partial<TituloDoErp> = {}): TituloDoErp => ({
   cliente: "Ana",
   valor: "500.00",
   vencimento: d("2026-12-01"),
-  baixadoEm: null,
   ...extra,
 });
 
@@ -21,7 +20,6 @@ const local = (extra: Partial<TituloLocal> = {}): TituloLocal => ({
   cliente: "Ana",
   valor: "500.00",
   vencimento: d("2026-12-01"),
-  baixadoEm: null,
   temAntecipacaoAtiva: false,
   ...extra,
 });
@@ -32,25 +30,16 @@ describe("planejarSincronizacao", () => {
     expect(p.criar).toHaveLength(1);
   });
 
-  it("ignora título novo que já está baixado no ERP", () => {
-    const p = planejarSincronizacao([remoto({ baixadoEm: d("2026-11-01") })], []);
-    expect(p.criar).toHaveLength(0);
-    expect(p.ignoradosJaBaixados).toBe(1);
-  });
-
   it("não faz nada quando nada mudou", () => {
     const p = planejarSincronizacao([remoto()], [local()]);
-    expect(p).toEqual({ criar: [], atualizar: [], baixar: [], valorDivergente: 0, ignoradosJaBaixados: 0 });
+    expect(p).toEqual({ criar: [], atualizar: [], valorDivergente: 0 });
   });
 
-  it("registra a baixa vinda do ERP", () => {
-    const p = planejarSincronizacao([remoto({ baixadoEm: d("2026-11-02") })], [local()]);
-    expect(p.baixar).toEqual([{ id: "t1", baixadoEm: d("2026-11-02") }]);
-  });
-
-  it("nunca desfaz uma baixa local", () => {
-    const p = planejarSincronizacao([remoto()], [local({ baixadoEm: d("2026-11-02") })]);
-    expect(p.baixar).toHaveLength(0);
+  it("nunca importa a baixa do ERP: o plano não tem como baixar título", () => {
+    // No ERP a baixa é o pagamento da antecipação pelo banco, não o do cliente.
+    const p = planejarSincronizacao([remoto()], [local()]);
+    expect(p).not.toHaveProperty("baixar");
+    expect(p).not.toHaveProperty("ignoradosJaBaixados");
   });
 
   it("atualiza o valor se não houver antecipação ativa", () => {
@@ -81,7 +70,6 @@ const base: Recebimento = {
   codigo: "100",
   valor_total: "1600.99",
   nome_cliente: "Ana",
-  liquidado: "0",
   data_vencimento: "2026-12-01",
 };
 
@@ -95,14 +83,18 @@ describe("recebimentoParaTitulo", () => {
         cliente: "Ana",
         valor: "1600.99",
         vencimento: d("2026-12-01"),
-        baixadoEm: null,
       },
     });
   });
 
-  it("usa a data de liquidação quando está baixado", () => {
-    const r = recebimentoParaTitulo({ ...base, liquidado: "1", data_liquidacao: "2026-11-02" });
-    expect("titulo" in r && r.titulo.baixadoEm).toEqual(d("2026-11-02"));
+  it("não traz baixa: liquidado e data de liquidação do ERP são ignorados", () => {
+    const r = recebimentoParaTitulo({
+      ...base,
+      liquidado: "1",
+      data_liquidacao: "2026-11-02",
+    } as Recebimento);
+    expect(r).toHaveProperty("titulo");
+    expect("titulo" in r && r.titulo).not.toHaveProperty("baixadoEm");
   });
 
   it("cai para o fornecedor ou um texto padrão sem cliente", () => {

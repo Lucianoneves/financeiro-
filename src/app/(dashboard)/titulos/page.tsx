@@ -5,7 +5,9 @@ import { Suspense } from "react";
 import { baixarTituloAction, criarTitulo, sincronizarAction } from "@/app/(dashboard)/actions";
 import { Campo, FormularioAcao } from "@/components/formulario-acao";
 import { BotaoAcao } from "@/components/botao-acao";
+import { Paginacao } from "@/components/paginacao";
 import { getDb } from "@/lib/db";
+import { janelaDaPagina, lerPagina } from "@/lib/paginacao";
 import { exigirSessao } from "@/lib/sessao";
 import { totaisDeAntecipacoes } from "@/lib/antecipacoes/totais";
 import { deCentavos, paraCentavos } from "@/lib/dinheiro";
@@ -56,11 +58,14 @@ async function SincronizarGestaoClick() {
   return (
     <FormularioAcao action={sincronizarAction} rotuloEnviar="Sincronizar com o GestãoClick">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Importa os recebimentos em aberto e atualiza as baixas. Só lê o
-        GestãoClick; nada é alterado lá. O período vale para o vencimento (ou
-        a data da baixa, nos já baixados).
+        Importa os recebimentos do GestãoClick e atualiza valor e vencimento.
+        Só lê o GestãoClick; nada é alterado lá. A baixa do ERP não é
+        importada: lá ela é o pagamento da antecipação pelo banco, e aqui só
+        o botão &quot;Cliente pagou&quot; baixa um título. O período vale para o
+        vencimento (ou a data da baixa no ERP, nos já baixados): um período
+        longo para trás traz títulos antigos já pagos pelo cliente.
       </p>
-      <Campo rotulo="Vencimento de" name="dataInicio" type="date" defaultValue={diasDeHoje(-180)} required />
+      <Campo rotulo="Vencimento de" name="dataInicio" type="date" defaultValue={diasDeHoje(-60)} required />
       <Campo rotulo="até" name="dataFim" type="date" defaultValue={diasDeHoje(365)} required />
     </FormularioAcao>
   );
@@ -69,10 +74,14 @@ async function SincronizarGestaoClick() {
 async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
   await connection(); // lê o banco a cada requisição, nunca no prerender
   await exigirSessao();
-  const filtro = lerFiltroEstado((await searchParams).estado);
+  const parametros = await searchParams;
+  const filtro = lerFiltroEstado(parametros.estado);
 
+  // Lê todos os títulos: o estado é derivado (nunca gravado) e os cartões de
+  // totais precisam do conjunto completo. Só a tabela abaixo é paginada.
   const todos = await getDb().titulo.findMany({
-    orderBy: { vencimento: "asc" },
+    orderBy: [{ vencimento: "asc" }, { id: "asc" }], // id desempata: página estável
+
     include: {
       antecipacoes: {
         select: {
@@ -105,7 +114,9 @@ async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
   const totais = totaisPorEstado(
     titulos.map((t) => ({ estado: t.estado, valorCentavos: paraCentavos(t.valor.toFixed(2)) })),
   );
-  const visiveis = filtro ? titulos.filter((t) => t.estado === filtro) : titulos;
+  const filtrados = filtro ? titulos.filter((t) => t.estado === filtro) : titulos;
+  const janela = janelaDaPagina(filtrados.length, lerPagina(parametros.pagina));
+  const visiveis = filtrados.slice(janela.pular, janela.pular + janela.tomar);
 
   return (
     <>
@@ -207,6 +218,12 @@ async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
           </tbody>
         </table>
       )}
+      <Paginacao
+        caminho="/titulos"
+        pagina={janela.pagina}
+        totalPaginas={janela.totalPaginas}
+        parametros={filtro ? { estado: filtro } : {}}
+      />
     </>
   );
 }

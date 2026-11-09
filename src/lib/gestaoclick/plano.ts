@@ -7,7 +7,6 @@ export type TituloLocal = {
   cliente: string;
   valor: string;
   vencimento: Date;
-  baixadoEm: Date | null;
   temAntecipacaoAtiva: boolean;
 };
 
@@ -17,21 +16,19 @@ export type PlanoDeSincronizacao = {
     id: string;
     dados: Partial<Pick<TituloDoErp, "numero" | "cliente" | "valor" | "vencimento">>;
   }[];
-  baixar: { id: string; baixadoEm: Date }[];
   // Valor mudou no ERP mas o título tem antecipação ativa: não mexemos.
   valorDivergente: number;
-  // Já baixados no ERP e nunca importados: não vale importar.
-  ignoradosJaBaixados: number;
 };
 
 const mesmoDia = (a: Date, b: Date) => a.getTime() === b.getTime();
 
 // Decide o que fazer, sem tocar em banco nem rede. Regras:
-// - novo e em aberto no ERP: cria; novo e já baixado: ignora;
+// - título novo: cria, esteja ele baixado ou não no ERP;
 // - existente: atualiza dados cadastrais; o valor só muda se NÃO houver
 //   antecipação ativa (o bruto da antecipação não pode passar do valor);
-// - a baixa vem do ERP e nunca é desfeita aqui (o botão "cliente pagou" manual
-//   pode ter vindo antes da baixa no ERP).
+// - a baixa do ERP NUNCA é importada: lá ela significa "o banco pagou a
+//   antecipação" (uns 30 dias antes do vencimento), não "o cliente pagou". O ERP
+//   não registra o pagamento do cliente; só o botão "Cliente pagou" baixa aqui.
 export function planejarSincronizacao(
   remotos: TituloDoErp[],
   locais: TituloLocal[],
@@ -40,17 +37,14 @@ export function planejarSincronizacao(
   const plano: PlanoDeSincronizacao = {
     criar: [],
     atualizar: [],
-    baixar: [],
     valorDivergente: 0,
-    ignoradosJaBaixados: 0,
   };
 
   for (const r of remotos) {
     const local = porExterno.get(r.idExterno);
 
     if (!local) {
-      if (r.baixadoEm) plano.ignoradosJaBaixados += 1;
-      else plano.criar.push(r);
+      plano.criar.push(r);
       continue;
     }
 
@@ -63,10 +57,6 @@ export function planejarSincronizacao(
       else dados.valor = r.valor;
     }
     if (Object.keys(dados).length > 0) plano.atualizar.push({ id: local.id, dados });
-
-    if (r.baixadoEm && !local.baixadoEm) {
-      plano.baixar.push({ id: local.id, baixadoEm: r.baixadoEm });
-    }
   }
 
   return plano;

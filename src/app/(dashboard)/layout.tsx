@@ -22,6 +22,9 @@ export default function DashboardLayout({
           <Link href="/titulos">Títulos</Link>
           <Link href="/custos">Custos</Link>
           <Link href="/contas">Contas</Link>
+          <Link href="/producao" className="text-zinc-500">
+            Produção
+          </Link>
         </nav>
         <form action={sair}>
           <Button type="submit" variant="outline" size="sm">

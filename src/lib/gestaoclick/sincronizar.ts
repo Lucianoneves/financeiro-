@@ -11,8 +11,6 @@ import {
 export type RelatorioSincronizacao = {
   criados: number;
   atualizados: number;
-  baixados: number;
-  ignoradosJaBaixados: number;
   ignoradosInvalidos: number;
   valorDivergente: number;
   naoVerificados: number;
@@ -47,6 +45,8 @@ async function lerDoErp<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 // Sincronização SOMENTE LEITURA do ERP: nada é escrito no GestãoClick.
+// A baixa do ERP não é importada (ela marca o pagamento da antecipação pelo
+// banco, não o do cliente): só "Cliente pagou" baixa um título aqui.
 // A janela vale para a data de fluxo do ERP (vencimento; data da baixa quando
 // já baixado). Títulos em aberto que saíram da janela são conferidos pelo
 // código, que o ERP busca ignorando o período.
@@ -68,7 +68,8 @@ export async function sincronizarTitulos(janela: {
     include: { antecipacoes: { where: { status: "ATIVA" }, select: { id: true } } },
   });
 
-  // Em aberto aqui, mas fora da janela: pode ter sido baixado em outra data.
+  // Em aberto aqui, mas fora da janela: a data de fluxo do ERP pode ter mudado
+  // (vencimento alterado, ou baixa no ERP), então consulta pelo código.
   const sumidos = locaisBanco.filter(
     (l) => !l.baixadoEm && l.idExterno && !idsRemotos.has(l.idExterno),
   );
@@ -91,7 +92,6 @@ export async function sincronizarTitulos(janela: {
       cliente: l.cliente,
       valor: l.valor.toFixed(2),
       vencimento: l.vencimento,
-      baixadoEm: l.baixadoEm,
       temAntecipacaoAtiva: l.antecipacoes.length > 0,
     })),
   );
@@ -109,21 +109,11 @@ export async function sincronizarTitulos(janela: {
       skipDuplicates: true,
     }),
     ...plano.atualizar.map((a) => db.titulo.update({ where: { id: a.id }, data: a.dados })),
-    // Condicional: não sobrescreve uma baixa que alguém deu manualmente entre a
-    // leitura e a gravação.
-    ...plano.baixar.map((b) =>
-      db.titulo.updateMany({
-        where: { id: b.id, baixadoEm: null },
-        data: { baixadoEm: b.baixadoEm },
-      }),
-    ),
   ]);
 
   return {
     criados: plano.criar.length,
     atualizados: plano.atualizar.length,
-    baixados: plano.baixar.length,
-    ignoradosJaBaixados: plano.ignoradosJaBaixados,
     ignoradosInvalidos: invalidos + invalidosExtras,
     valorDivergente: plano.valorDivergente,
     naoVerificados: sumidos.length - consultar.length,
