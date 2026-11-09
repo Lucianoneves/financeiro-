@@ -5,7 +5,9 @@ import { Suspense } from "react";
 import { baixarTituloAction, criarTitulo, sincronizarAction } from "@/app/(dashboard)/actions";
 import { Campo, FormularioAcao } from "@/components/formulario-acao";
 import { BotaoAcao } from "@/components/botao-acao";
+import { Paginacao } from "@/components/paginacao";
 import { getDb } from "@/lib/db";
+import { janelaDaPagina, lerPagina } from "@/lib/paginacao";
 import { exigirSessao } from "@/lib/sessao";
 import { totaisDeAntecipacoes } from "@/lib/antecipacoes/totais";
 import { deCentavos, paraCentavos } from "@/lib/dinheiro";
@@ -72,10 +74,14 @@ async function SincronizarGestaoClick() {
 async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
   await connection(); // lê o banco a cada requisição, nunca no prerender
   await exigirSessao();
-  const filtro = lerFiltroEstado((await searchParams).estado);
+  const parametros = await searchParams;
+  const filtro = lerFiltroEstado(parametros.estado);
 
+  // Lê todos os títulos: o estado é derivado (nunca gravado) e os cartões de
+  // totais precisam do conjunto completo. Só a tabela abaixo é paginada.
   const todos = await getDb().titulo.findMany({
-    orderBy: { vencimento: "asc" },
+    orderBy: [{ vencimento: "asc" }, { id: "asc" }], // id desempata: página estável
+
     include: {
       antecipacoes: {
         select: {
@@ -108,7 +114,9 @@ async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
   const totais = totaisPorEstado(
     titulos.map((t) => ({ estado: t.estado, valorCentavos: paraCentavos(t.valor.toFixed(2)) })),
   );
-  const visiveis = filtro ? titulos.filter((t) => t.estado === filtro) : titulos;
+  const filtrados = filtro ? titulos.filter((t) => t.estado === filtro) : titulos;
+  const janela = janelaDaPagina(filtrados.length, lerPagina(parametros.pagina));
+  const visiveis = filtrados.slice(janela.pular, janela.pular + janela.tomar);
 
   return (
     <>
@@ -210,6 +218,12 @@ async function ListaTitulos({ searchParams }: { searchParams: SearchParams }) {
           </tbody>
         </table>
       )}
+      <Paginacao
+        caminho="/titulos"
+        pagina={janela.pagina}
+        totalPaginas={janela.totalPaginas}
+        parametros={filtro ? { estado: filtro } : {}}
+      />
     </>
   );
 }

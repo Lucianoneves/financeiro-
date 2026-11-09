@@ -7,16 +7,20 @@ import {
 } from "@/app/(dashboard)/actions";
 import { Campo, FormularioAcao, Selecao } from "@/components/formulario-acao";
 import { BotaoAcao } from "@/components/botao-acao";
+import { Paginacao } from "@/components/paginacao";
 import { getDb } from "@/lib/db";
+import { janelaDaPagina, lerPagina } from "@/lib/paginacao";
 import { exigirSessao } from "@/lib/sessao";
 
-export default function AntecipacoesPage() {
+type SearchParams = Promise<{ [chave: string]: string | string[] | undefined }>;
+
+export default function AntecipacoesPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <main className="flex flex-col gap-6 p-8">
       <h1 className="text-2xl font-semibold">Antecipações</h1>
       <Suspense fallback={<p>Carregando...</p>}>
         <NovaAntecipacao />
-        <ListaAntecipacoes />
+        <ListaAntecipacoes searchParams={searchParams} />
       </Suspense>
     </main>
   );
@@ -71,16 +75,23 @@ async function NovaAntecipacao() {
   );
 }
 
-async function ListaAntecipacoes() {
+async function ListaAntecipacoes({ searchParams }: { searchParams: SearchParams }) {
   await connection(); // lê o banco a cada requisição, nunca no prerender
   await exigirSessao();
-  const antecipacoes = await getDb().antecipacao.findMany({
-    orderBy: { criadaEm: "desc" },
+  const db = getDb();
+  // Esta tela não mostra totais, então a paginação é feita no banco.
+  const total = await db.antecipacao.count();
+  if (total === 0) return <p>Nenhuma antecipação registrada.</p>;
+  const janela = janelaDaPagina(total, lerPagina((await searchParams).pagina));
+  const antecipacoes = await db.antecipacao.findMany({
+    orderBy: [{ criadaEm: "desc" }, { id: "desc" }], // id desempata: página estável
+    skip: janela.pular,
+    take: janela.tomar,
     include: { titulo: true, conta: true },
   });
-  if (antecipacoes.length === 0) return <p>Nenhuma antecipação registrada.</p>;
 
   return (
+    <>
     <table className="w-full max-w-5xl text-left text-sm">
       <thead>
         <tr className="border-b border-zinc-200 dark:border-zinc-800">
@@ -126,5 +137,7 @@ async function ListaAntecipacoes() {
         ))}
       </tbody>
     </table>
+    <Paginacao caminho="/antecipacoes" pagina={janela.pagina} totalPaginas={janela.totalPaginas} />
+    </>
   );
 }
